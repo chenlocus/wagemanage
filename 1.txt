@@ -1,0 +1,135 @@
+//修改密码
+int CStdDataBase::ChangePassWord( CString szOld, CString szNew)
+{
+	if( !DBConnect() )
+		return false;
+
+	CString strSQL;
+	strSQL.Format(_T("Select * from System where Item=\""));
+	strSQL = strSQL + _T("PassWord") + _T("\"");
+
+	if(m_pRs->Open(strSQL, CADORecordset::openQuery))
+	{
+		CString strName = _T("");
+
+		if( m_pRs->GetRecordCount() == 0 )
+		{
+			try
+			{
+				m_pRs->Open(_T("System"), CADORecordset::openTable);
+			}
+			catch(CADOException* e)
+			{
+				return false;
+			}
+
+			if(!m_pRs->IsEOF())
+			{
+				m_pRs->MoveLast();
+			}
+
+			m_pRs->AddNew();
+
+			try
+			{
+				CString szPWD = _T("PassWord");
+				m_pRs->SetFieldValue(_T("Item"), szPWD );
+			}
+			catch(CADOException* e)
+			{
+				return false;
+			}
+
+			try
+			{
+				m_pRs->SetFieldValue(_T("Value"), szNew );
+			}
+			catch(CADOException* e)
+			{
+				return false;
+			}
+			m_pRs->Update();
+
+			return CHANGEPWD_OK;
+		}
+
+		CString szValue;
+		m_pRs->MoveFirst();
+		m_pRs->GetFieldValue( _T("Value"), szValue );
+		szOld.MakeUpper();
+		szValue.MakeUpper();
+		if( szOld.CompareNoCase( szValue ) != 0 )
+			return CHANGEPWD_OLD_WRONG;
+	}
+
+	strSQL.Format(_T("Select * from System where Item=\"PassWord\"") );
+
+	if(m_pRs->Open(strSQL, CADORecordset::openQuery))
+	{
+		if( m_pRs->GetRecordCount() == 0 )
+		{
+			DBClose();
+			return CHANGEPWD_UNKNOWN;
+		}
+	
+		m_pRs->Edit();
+
+		try
+		{
+			m_pRs->SetFieldValue( _T("Value"), szNew );
+		}
+		catch(CADOException * e)
+		{
+			return CHANGEPWD_UNKNOWN;
+		}
+
+		m_pRs->Update();
+	}
+	DBClose();
+	return CHANGEPWD_OK;
+}
+//以下修改纪录
+//修改纪录的主要步骤：
+//1获取相关的纪录集合
+//2纪录集合中的指针定位到相关纪录
+//3逐字段替换字段值
+//4Update
+BOOL CStdDataBase::ModDepartment( DepartmentInfo& deptInfo, int nID )
+{
+	if( !DBConnect() )
+		return FALSE;
+
+	if( FALSE == m_pRs->Open( _T("Departments"), CADORecordset::openTable ) )
+	{	
+		return false;
+	}
+
+	CString szFilter;
+	szFilter.Format( _T("ID=%d"), nID );
+	m_pRs->SetFilter( szFilter );
+
+	m_pRs->Edit();
+
+	try
+	{
+		m_pRs->SetFieldValue( _T("Name"), deptInfo.szDeptName );
+	}
+	catch(CADOException * e)
+	{
+		return false;
+	}
+
+	try
+	{
+		m_pRs->SetFieldValue( _T("Comment"), deptInfo.szComment );
+	}
+	catch(CADOException * e)
+	{
+		return false;
+	}
+
+	m_pRs->Update();
+	m_pRs->GetFieldValue(_T("ID"), deptInfo.nID);
+
+	return true;
+}
